@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- स्क्रीन को जूम होने या खिसकने से रोकने के लिए -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Farhan Business Pay - Admin</title>
     <style>
         :root { --primary: #cc0000; --bg: #f8f9fa; --surface: #ffffff; --text: #333333; }
         body { 
             background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
-            user-select: none; -webkit-user-select: none;
+            /* पूरी वेबसाइट पर टेक्स्ट सेलेक्ट या कॉपी करना बंद */
+            user-select: none; -webkit-user-select: none; touch-action: manipulation;
         }
         .container {
             background: var(--surface); width: 90%; max-width: 450px; padding: 30px;
@@ -32,19 +34,21 @@
         }
         button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(204, 0, 0, 0.2); }
         .bio-btn { background: #333; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .key-list { margin-top: 25px; max-height: 350px; overflow-y: auto; }
+        .key-list { margin-top: 25px; max-height: 400px; overflow-y: auto; }
+        
+        /* 3D Key Card Design */
         .key-card {
             background: #fff; border: 1px solid #eee; border-left: 5px solid var(--primary);
             padding: 15px; border-radius: 8px; margin-bottom: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
-        .app-name { font-weight: bold; font-size: 16px; color: var(--text); }
-        .api-key { 
-            font-family: monospace; color: #666; margin: 8px 0; font-size: 14px; 
-            user-select: text; -webkit-user-select: text; word-break: break-all;
-        }
-        .actions { display: flex; gap: 10px; margin-top: 10px; }
-        .action-btn { padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; color: white; flex: 1; }
+        .app-name { font-weight: bold; font-size: 16px; color: var(--text); display: flex; justify-content: space-between; }
+        .api-key-box { background: #f1f1f1; padding: 8px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 13px; color: #555; word-break: break-all; border: 1px dashed #ccc; }
+        
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .action-btn { padding: 8px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; color: white; flex: 1 1 30%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-copy { background: #4CAF50; }
+        .btn-prompt { background: #673AB7; flex: 1 1 100%; margin-bottom: 4px; font-size: 13px; }
         .btn-rename { background: #2196F3; }
         .btn-delete { background: #f44336; }
         #dashboard { display: none; }
@@ -72,6 +76,7 @@
 </div>
 
 <script>
+    const SERVER_URL = "https://farhan-business-pay.onrender.com/create-order";
     let currentPassword = '';
 
     function togglePassword() {
@@ -159,9 +164,17 @@
         if(data.success) renderKeys(data.keys);
     }
 
-    function copyText(text) {
+    function copyText(text, message) {
         navigator.clipboard.writeText(text);
-        alert("API Key Copied: " + text);
+        alert(message);
+    }
+
+    // AI प्रॉम्प्ट बनाने का फंक्शन
+    function copyAIPrompt(appName, apiKey) {
+        const promptText = `I am building an Android app named '${appName}'. I have a custom Node.js payment gateway integrated with Razorpay. To initiate a payment, you need to make a POST request to '${SERVER_URL}' with a JSON body: { "app_key": "${apiKey}", "amount": 100 } (amount is in INR). Please provide the Android Kotlin/Java architecture and code to implement this payment request securely.`;
+        
+        navigator.clipboard.writeText(promptText);
+        alert("✅ AI Prompt Copied!\nअब आप इसे ChatGPT/Gemini को देकर अपने ऐप का कोड लिखवा सकते हैं।");
     }
 
     function renderKeys(keys) {
@@ -170,10 +183,16 @@
         for(let name in keys) {
             container.innerHTML += `
                 <div class="key-card">
-                    <div class="app-name">${name}</div>
-                    <div class="api-key">${keys[name]}</div>
+                    <div class="app-name">
+                        <span>📱 ${name}</span>
+                    </div>
+                    <div class="api-key-box">
+                        <b>Key:</b> ${keys[name]}<br>
+                        <b style="color:#cc0000; margin-top:5px; display:block;">URL: ${SERVER_URL}</b>
+                    </div>
                     <div class="actions">
-                        <button class="action-btn btn-copy" onclick="copyText('${keys[name]}')">Copy</button>
+                        <button class="action-btn btn-prompt" onclick="copyAIPrompt('${name}', '${keys[name]}')">🤖 Copy AI Builder Prompt</button>
+                        <button class="action-btn btn-copy" onclick="copyText('${keys[name]}', 'API Key Copied!')">Copy Key</button>
                         <button class="action-btn btn-rename" onclick="renameKey('${name}')">Rename</button>
                         <button class="action-btn btn-delete" onclick="deleteKey('${name}')">Delete</button>
                     </div>
@@ -183,5 +202,4 @@
     }
 </script>
 </body>
-  </html>
-  
+</html>
