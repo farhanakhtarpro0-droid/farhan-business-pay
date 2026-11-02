@@ -1,7 +1,7 @@
 {
   "name": "farhan-business-pay",
   "version": "1.0.0",
-  "description": "Universal Payment API with Razorpay",
+  "description": "Premium Universal Payment API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
