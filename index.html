@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farhan Business Pay - Admin</title>
+    <style>
+        :root { --primary: #cc0000; --bg: #f8f9fa; --surface: #ffffff; --text: #333333; }
+        body { 
+            background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
+            user-select: none; -webkit-user-select: none;
+        }
+        .container {
+            background: var(--surface); width: 90%; max-width: 450px; padding: 30px;
+            border-radius: 16px; border-top: 6px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(204, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.6);
+        }
+        h2 { text-align: center; color: var(--primary); margin-top: 0; font-weight: 700; letter-spacing: 1px; }
+        .input-group { position: relative; margin-bottom: 20px; }
+        input {
+            width: 100%; padding: 14px 15px; border: 2px solid #e0e0e0; border-radius: 8px;
+            font-size: 16px; outline: none; transition: border 0.3s; box-sizing: border-box;
+            background: #fafafa;
+        }
+        input:focus { border-color: var(--primary); background: #fff; }
+        .eye-icon { position: absolute; right: 15px; top: 15px; cursor: pointer; color: #888; font-size: 18px; }
+        button {
+            width: 100%; padding: 14px; background: var(--primary); color: white; border: none;
+            border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(204, 0, 0, 0.3);
+        }
+        button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(204, 0, 0, 0.2); }
+        .bio-btn { background: #333; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .key-list { margin-top: 25px; max-height: 350px; overflow-y: auto; }
+        .key-card {
+            background: #fff; border: 1px solid #eee; border-left: 5px solid var(--primary);
+            padding: 15px; border-radius: 8px; margin-bottom: 12px;
+        }
+        .app-name { font-weight: bold; font-size: 16px; color: var(--text); }
+        .api-key { 
+            font-family: monospace; color: #666; margin: 8px 0; font-size: 14px; 
+            user-select: text; -webkit-user-select: text; word-break: break-all;
+        }
+        .actions { display: flex; gap: 10px; margin-top: 10px; }
+        .action-btn { padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; color: white; flex: 1; }
+        .btn-copy { background: #4CAF50; }
+        .btn-rename { background: #2196F3; }
+        .btn-delete { background: #f44336; }
+        #dashboard { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="loginScreen">
+    <h2>BUSINESS PAY</h2>
+    <div class="input-group">
+        <input type="password" id="adminPass" placeholder="Enter Secure Password" />
+        <span class="eye-icon" onclick="togglePassword()">👁️</span>
+    </div>
+    <button onclick="login()">Login to Dashboard</button>
+    <button class="bio-btn" onclick="bioLogin()"><span>📱</span> Use Face ID / Biometric</button>
+</div>
+
+<div class="container" id="dashboard">
+    <h2>API DASHBOARD</h2>
+    <div class="input-group">
+        <input type="text" id="newAppName" placeholder="New App Name (e.g. ChatApp)" />
+    </div>
+    <button onclick="generateKey()">Generate New API Key</button>
+    <div class="key-list" id="keysContainer"></div>
+</div>
+
+<script>
+    let currentPassword = '';
+
+    function togglePassword() {
+        const input = document.getElementById('adminPass');
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    async function login(pass = null) {
+        currentPassword = pass || document.getElementById('adminPass').value;
+        const res = await fetch('/api/keys', { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: currentPassword })
+        });
+        const data = await res.json();
+        if(data.success) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            renderKeys(data.keys);
+        } else {
+            alert('❌ Incorrect Password');
+        }
+    }
+
+    async function bioLogin() {
+        try {
+            if(localStorage.getItem('faceID_enabled') === 'true') {
+                const reqOpts = { challenge: new Uint8Array(32), timeout: 60000, userVerification: "required" };
+                await navigator.credentials.get({ publicKey: reqOpts });
+                login(localStorage.getItem('saved_pass'));
+            } else {
+                const pass = prompt("Face ID सेट करने के लिए अपना मास्टर पासवर्ड डालें:");
+                if(pass) {
+                    const res = await fetch('/api/keys', { 
+                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: pass })
+                    });
+                    const data = await res.json();
+                    
+                    if(data.success) {
+                        const createOpts = {
+                            challenge: new Uint8Array(32),
+                            rp: { name: "Farhan Business Pay", id: window.location.hostname },
+                            user: { id: new Uint8Array(16), name: "Admin", displayName: "Farhan" },
+                            pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                            timeout: 60000
+                        };
+                        await navigator.credentials.create({ publicKey: createOpts });
+                        localStorage.setItem('faceID_enabled', 'true');
+                        localStorage.setItem('saved_pass', pass);
+                        alert("✅ Face ID / Fingerprint Successfully Registered!");
+                        login(pass);
+                    } else {
+                        alert("❌ गलत पासवर्ड! फिंगरप्रिंट सेट नहीं हो सकता।");
+                    }
+                }
+            }
+        } catch(e) { alert("Biometric Error: " + e.message); }
+    }
+
+    async function generateKey() {
+        const appName = document.getElementById('newAppName').value;
+        if(!appName) return alert("App name required!");
+        const res = await fetch('/api/generate', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: currentPassword, appName })
+        });
+        const data = await res.json();
+        if(data.success) { document.getElementById('newAppName').value = ''; renderKeys(data.keys); }
+    }
+
+    async function renameKey(oldName) {
+        const newName = prompt("नया नाम डालें:", oldName);
+        if(!newName || newName === oldName) return;
+        const res = await fetch('/api/rename', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: currentPassword, oldName, newName })
+        });
+        const data = await res.json();
+        if(data.success) renderKeys(data.keys);
+    }
+
+    async function deleteKey(appName) {
+        if(!confirm("क्या आप सच में '"+appName+"' की API Key डिलीट करना चाहते हैं?")) return;
+        const res = await fetch('/api/delete', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: currentPassword, appName })
+        });
+        const data = await res.json();
+        if(data.success) renderKeys(data.keys);
+    }
+
+    function copyText(text) {
+        navigator.clipboard.writeText(text);
+        alert("API Key Copied: " + text);
+    }
+
+    function renderKeys(keys) {
+        const container = document.getElementById('keysContainer');
+        container.innerHTML = '';
+        for(let name in keys) {
+            container.innerHTML += `
+                <div class="key-card">
+                    <div class="app-name">${name}</div>
+                    <div class="api-key">${keys[name]}</div>
+                    <div class="actions">
+                        <button class="action-btn btn-copy" onclick="copyText('${keys[name]}')">Copy</button>
+                        <button class="action-btn btn-rename" onclick="renameKey('${name}')">Rename</button>
+                        <button class="action-btn btn-delete" onclick="deleteKey('${name}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+</script>
+</body>
+  </html>
+  
