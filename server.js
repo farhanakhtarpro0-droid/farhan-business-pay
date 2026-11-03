@@ -18,13 +18,46 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// RAM Free लोकल स्टोरेज
+// लोकल डेटाबेस फाइल
 const appsFile = './apps.json';
-if (!fs.existsSync(appsFile)) { fs.writeFileSync(appsFile, JSON.stringify({})); }
-const getApps = () => JSON.parse(fs.readFileSync(appsFile));
-const saveApps = (data) => fs.writeFileSync(appsFile, JSON.stringify(data, null, 2));
 
-// पासवर्ड चेक करने का मिडलवेयर
+// 🚀 5 परमानेंट (Permanent) API Keys जो कभी डिलीट नहीं होंगी
+const permanentKeys = {
+    "Project_1_WhatsApp_Agent": "FBP_PERM_KEY_1_ALPHA9X8Y",
+    "Project_2_Shayari_App": "FBP_PERM_KEY_2_BETA4A5B",
+    "Project_3_Digital_Gold": "FBP_PERM_KEY_3_GAMMA1M2N",
+    "Project_4_Future_App": "FBP_PERM_KEY_4_DELTA8P9Q",
+    "Project_5_Extra_Backup": "FBP_PERM_KEY_5_OMEGA5U6V"
+};
+
+// ऐप्स गेट करने का क्रैश-प्रूफ फंक्शन
+const getApps = () => {
+    let apps = {};
+    
+    // अगर फाइल मौजूद है, तो उसे पढ़ें
+    if (fs.existsSync(appsFile)) {
+        try {
+            apps = JSON.parse(fs.readFileSync(appsFile));
+        } catch (error) {
+            console.error("File Read Error, recovering...");
+        }
+    }
+
+    // 🔥 अगर Render ने फाइल डिलीट कर दी है (खाली है), तो 5 परमानेंट Keys वापस डाल दें
+    if (Object.keys(apps).length === 0) {
+        apps = { ...permanentKeys };
+        fs.writeFileSync(appsFile, JSON.stringify(apps, null, 2));
+    }
+    
+    return apps;
+};
+
+// ऐप्स सेव करने का फंक्शन
+const saveApps = (data) => {
+    fs.writeFileSync(appsFile, JSON.stringify(data, null, 2));
+};
+
+// पासवर्ड वेरिफिकेशन मिडलवेयर
 const verifyPass = (req, res, next) => {
     if (req.body.password !== process.env.ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, error: "Unauthorized" });
@@ -44,6 +77,7 @@ app.post('/api/keys', verifyPass, (req, res) => {
     res.json({ success: true, keys: getApps() });
 });
 
+// नई Key जनरेट करना (यह भी काम करेगा, लेकिन परमानेंट Keys हमेशा सेफ रहेंगी)
 app.post('/api/generate', verifyPass, (req, res) => {
     const { appName } = req.body;
     const apps = getApps();
@@ -71,11 +105,15 @@ app.post('/api/delete', verifyPass, (req, res) => {
     res.json({ success: true, keys: apps });
 });
 
-// Payment API (RAM Optimized)
+// Payment API (RAM Optimized & Crash-Proof)
 app.post('/create-order', async (req, res) => {
     const { app_key, amount } = req.body;
     const apps = getApps();
-    if (!Object.values(apps).includes(app_key)) return res.status(401).json({ error: "Invalid App Key!" });
+    
+    // चेक करें कि भेजी गई Key हमारे सिस्टम में है या नहीं
+    if (!Object.values(apps).includes(app_key)) {
+        return res.status(401).json({ error: "Invalid App Key! पेमेंट रिजेक्ट कर दिया गया है।" });
+    }
 
     try {
         const options = { amount: amount * 100, currency: "INR", receipt: "rcpt_" + Date.now() };
@@ -86,4 +124,4 @@ app.post('/create-order', async (req, res) => {
     }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log("Backend Running Securely!"));
+app.listen(process.env.PORT || 3000, () => console.log("Farhan Business Pay Running with Permanent Keys!"));
